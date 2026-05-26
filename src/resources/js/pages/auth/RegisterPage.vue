@@ -28,52 +28,73 @@
                         </div>
 
                         <div class="mt-6 space-y-5">
-                            <div class="mt-20">
+                            <div class="mt-20 relative">
                                 <label
                                     class="text-[40px] mb-2 block text-sm font-semibold text-slate-800"
                                     >Имя Фамилия</label
                                 >
+                                <IconInfo v-if="nameError"/>
                                 <input
                                     v-model="fullName"
                                     type="text"
                                     placeholder="Иван Иванов"
-                                    class="text-[40px] w-full px-4 py-3 text-gray-500 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 placeholder-gray-400"
-                                />
+                                    :class="['text-[40px] w-full px-4 py-3 text-gray-500 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 placeholder-gray-400',
+                                        nameError
+                                        ? 'border-red-500 text-red-500'
+                                        : ''
+                                    ]"                                />
                             </div>
 
-                            <div class="mt-20">
+                            <div class="mt-20 relative">
                                 <label
                                     class="text-[40px] mb-2 block text-sm font-semibold text-slate-800"
                                     >Email</label
                                 >
+                                
+                                <IconInfo v-if="emailError"/>
                                 <input
                                     v-model="email"
                                     type="email"
                                     placeholder="ivanov@mail.ru"
-                                    class="text-[40px] w-full px-4 py-3 text-gray-500 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 placeholder-gray-400"
+                                    :class="['text-[40px] w-full px-4 py-3 text-gray-500 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 placeholder-gray-400',
+                                        emailError
+                                        ? 'border-red-500 text-red-500'
+                                        : ''
+                                    ]"
                                 />
                             </div>
 
-                            <div class="mt-20">
+                            <div class="mt-20 relative">
                                 <label
                                     class="text-[40px] mb-2 block text-sm font-semibold text-slate-800"
                                     >Телефон</label
                                 >
+                                <IconInfo v-if="phoneError"/>
                                 <input
+                                    v-model="phone"
                                     type="text"
-                                    class="text-[40px] w-full px-4 py-3 text-gray-500 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 placeholder-gray-400"
+                                    :class="['text-[40px] w-full px-4 py-3 text-gray-500 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 placeholder-gray-400',
+                                        phoneError
+                                        ? 'border-red-500 text-red-500'
+                                        : ''
+                                    ]"
                                     placeholder=""
                                 />
                             </div>
 
-                            <div class="mt-20">
+                            <div class="mt-20 relative">
                                 <label
-                                    class="mb-2 block text-sm font-semibold text-slate-800"
+                                    class="text-[40px] mb-2 block text-sm font-semibold text-slate-800"
                                     >Род занятий</label
                                 >
+                                <IconInfo v-if="positionError"/>
                                 <select
-                                    v-model="occupation"
-                                    class="text-[40px] w-full px-4 py-3 text-gray-500 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 placeholder-gray-400"
+                                    v-model="position"
+                                    :class="['text-[40px] w-full px-4 py-3 text-gray-500 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 placeholder-gray-400',
+                                        positionError
+                                        ? 'border-red-500 text-red-500'
+                                        : ''
+                                    ]"
                                 >
                                     <option>Дизайнер</option>
                                     <option>Маркетолог</option>
@@ -229,15 +250,20 @@ import {
 import Logo from '@/components/Logo.vue'
 import BG from '@/assets/images/BG.svg'
 import Button from '@/components/Button.vue'
+import IconInfo from '@/components/IconInfo.vue'
 
 const router = useRouter()
 const fullName = ref('')
 const email = ref('')
-const phone = ref('+7 (921) 666 40 40')
-const occupation = ref('Дизайнер')
+const phone = ref('')
+const position = ref('')
 const showCodeScreen = ref(false)
 const verificationCode = ref('')
 const codeError = ref('')
+const emailError = ref('')
+const phoneError = ref('')
+const nameError = ref('')
+const positionError = ref('')
 
 const goBack = () => {
     router.back()
@@ -246,13 +272,69 @@ const authorize = () => {
     registerRequest({
         name: fullName.value,
         email: email.value,
-        phone: phone.value
+        phone: phone.value,
+        position: position.value
     })
 }
 
-const getCodeByEmail = () => {
-    showCodeScreen.value = true
-    sendEmailCodeRequest(email.value)
+const getCodeByEmail = async () => {
+    // Проверка на клиенте до отправки
+
+    if (validateForm()) {
+        try {
+            let response = await sendEmailCodeRequest(email.value)
+            console.log('response', response)
+            showCodeScreen.value = true
+        } catch (error) {
+            // Обработка ошибок, как показано выше
+            if (error.response?.status === 422) {
+                codeError.value =
+                    error.response.data.message || 'Неверный email'
+            }
+        }
+    }
+}
+
+function validateForm () {
+    // Сброс ошибок перед проверкой
+    emailError.value = ''
+    phoneError.value = ''
+    nameError.value = ''
+    positionError.value = ''
+
+    let isValid = true
+
+    // Проверка email
+    if (!email.value || email.value.trim() === '') {
+        emailError.value = 'Введите email'
+        isValid = false
+    } else if (!email.value.includes('@')) {
+        emailError.value = 'Некорректный email'
+        isValid = false
+    }
+
+    // Проверка телефона (простой пример — хотя бы 10 цифр)
+    if (
+        !phone.value ||
+        !/^\+?\d{10,}$/.test(phone.value.replace(/[\s()-]/g, ''))
+    ) {
+        phoneError.value = 'Введите корректный телефон'
+        isValid = false
+    }
+
+    // Проверка имени
+    if (!fullName.value || fullName.value.trim() === '') {
+        nameError.value = 'Введите имя'
+        isValid = false
+    }
+
+    // Проверка должности
+    if (!position.value || position.value.trim() === '') {
+        positionError.value = 'Введите должность'
+        isValid = false
+    }
+
+    return isValid
 }
 
 const submitRegistration = async () => {
@@ -270,7 +352,7 @@ const submitRegistration = async () => {
                 name: fullName.value,
                 email: email.value,
                 phone: phone.value,
-                occupation: occupation.value
+                position: position.value
             })
 
             // Перенаправляем или показываем успех
