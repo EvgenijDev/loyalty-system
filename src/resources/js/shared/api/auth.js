@@ -2,12 +2,7 @@ import apiClient from './axios'
 
 
 export const registerRequest = async (data) => {
-
-    await apiClient.get('/sanctum/csrf-cookie', {
-        baseURL: '/',
-    })
-
-    return apiClient.post('/register', data)
+    return apiClient.post('/register-with-email', data)
 }
 
 export const sendEmailCodeRequest = async (email) => {
@@ -19,11 +14,6 @@ export const verifyEmailCodeRequest = async (email, code) => {
 }
 
 export const loginRequest = async (data) => {
-
-    await apiClient.get('/sanctum/csrf-cookie', {
-        baseURL: '/',
-    })
-
     return apiClient.post('/login', data)
 }
 

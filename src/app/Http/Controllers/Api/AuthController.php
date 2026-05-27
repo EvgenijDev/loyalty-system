@@ -18,7 +18,7 @@ class AuthController extends Controller
 
 
 
- // Шаг 1: Отправка кода на email
+    // Шаг 1: Отправка кода на email
     public function sendEmailCode(Request $request)
     {
         $request->validate([
@@ -27,23 +27,23 @@ class AuthController extends Controller
 
         // Генерируем 6-значный код
         $code = rand(100000, 999999);
-        
+
         // Сохраняем код в кэш на 10 минут
         Cache::put('email_code_' . $request->email, $code, now()->addMinutes(10));
-        
+
         // Устанавливаем лимит отправки (раз в минуту)
         if (Cache::has('email_throttle_' . $request->email)) {
             return response()->json([
                 'message' => 'Подождите минуту перед повторной отправкой'
             ], 429);
         }
-        
+
         Cache::put('email_throttle_' . $request->email, true, now()->addMinute());
 
         // Отправляем код на почту
         Mail::raw("Ваш код подтверждения: {$code}", function ($message) use ($request) {
             $message->to($request->email)
-                    ->subject('Код подтверждения регистрации');
+                ->subject('Код подтверждения регистрации');
         });
 
         return response()->json([
@@ -60,7 +60,7 @@ class AuthController extends Controller
         ]);
 
         $savedCode = Cache::get('email_code_' . $request->email);
-        
+
         if (!$savedCode || $savedCode != $request->code) {
             return response()->json([
                 'message' => 'Неверный или истекший код'
@@ -85,7 +85,6 @@ class AuthController extends Controller
             'email' => 'required|email|unique:users,email',
             'registration_token' => 'required|string',
             'name' => 'required|string|max:255',
-            'password' => 'required|string|min:8|confirmed'
         ]);
 
         // Проверяем токен
@@ -96,16 +95,28 @@ class AuthController extends Controller
             ], 422);
         }
 
+        // Проверяем, не зарегистрирован ли уже пользователь
+        if (User::where('email', $request->email)->exists()) {
+            return response()->json([
+                'message' => 'Пользователь с таким email уже существует'
+            ], 422);
+        }
+
+        $tempPassword = Str::random(16);
+
         // Создаем пользователя
         $user = User::create([
             'email' => $request->email,
             'name' => $request->name,
-            'password' => Hash::make($request->password),
+            'phone' => $request->phone,
+            'password' => Hash::make($tempPassword),
             'email_verified_at' => now() // Сразу верифицируем email
         ]);
 
         // Удаляем временный токен
         Cache::forget('registration_token_' . $request->email);
+        Cache::forget('email_code_' . $request->email);
+        Cache::forget('email_throttle_' . $request->email);
 
         // Авторизуем пользователя
         $token = $user->createToken('auth-token')->plainTextToken;
